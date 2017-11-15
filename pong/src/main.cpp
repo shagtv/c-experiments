@@ -1,9 +1,6 @@
-//#include <iostream>
-//#include <time.h>
-//#include <stdlib.h>
 #include <ncurses.h>
-
-//using namespace std;
+#include <stdlib.h>
+#include <time.h>
 
 enum eDir {
     STOP = 0, LEFT = 1, UPLEFT = 2, DOWNLEFT = 3, RIGHT = 4, UPRIGHT = 5, DOWNRIGHT = 6
@@ -34,7 +31,7 @@ public:
     }
 
     void randomDirection() {
-        direction = (eDir) ((12 % 6) + 1);
+        direction = (eDir) ((rand() % 6) + 1);
     }
 
     inline int getX() { return x; }
@@ -73,11 +70,6 @@ public:
                 break;
         }
     }
-
-//    friend ostream &operator<<(ostream &o, cBall c) {
-//        o << "Ball[" << c.x << "," << c.y << "][" << c.direction << "]";
-//        return o;
-//    }
 };
 
 class cPaddle {
@@ -109,10 +101,12 @@ public:
 
     inline void moveDown() { y++; }
 
-//    friend ostream &operator<<(ostream &o, cPaddle c) {
-//        o << "Paddle[" << c.x << "," << c.y << "]";
-//        return o;
-//    }
+    void Move(cBall *ball) {
+        if (ball->getY() < y)
+	    y--;
+	else if (ball->getY() > y)
+	    y++;
+    }
 };
 
 class cGameManager {
@@ -126,7 +120,7 @@ private:
     cPaddle *player2;
 public:
     cGameManager(int w, int h) {
-        //srand(time(NULL));
+	srand(time(NULL));
         quit = false;
         up1 = 'w';
         up2 = 'i';
@@ -156,8 +150,6 @@ public:
     }
 
     void Draw() {
-        //system("clear");
-
         int ballX = ball->getX();
         int ballY = ball->getY();
         int player1X = player1->getX();
@@ -204,10 +196,12 @@ public:
         for (int i = 0; i < width + 2; i++)
             printw("#");
         printw("\n");
+	printw("Score: %d - %d", score1, score2);
     }
 
     void Input() {
         ball->Move();
+	player2->Move(ball);
 
         int ballX = ball->getX();
         int ballY = ball->getY();
@@ -230,17 +224,43 @@ public:
             if (player2Y + 4 < height)
                 player2->moveDown();
         if (ball->getDirection() == STOP)
-            ball->randomDirection();
+            ball->randomDirection();	    
         if (current == 'q')
             quit = true;
     }
-    void Logic() {
-        int ballX = ball->getX();
-        int ballY = ball->getY();
-        int player1X = player1->getX();
-        int player1Y = player1->getY();
-        int player2X = player2->getX();
-        int player2Y = player2->getY();
+    void Logic()
+    {
+        int ballx = ball->getX();
+        int bally = ball->getY();
+        int player1x = player1->getX();
+        int player2x = player2->getX();
+        int player1y = player1->getY();
+        int player2y = player2->getY();
+ 
+        //left paddle
+        for (int i = 0; i < 4; i++)
+            if (ballx == player1x + 1)
+                if (bally == player1y + i)
+                    ball->changeDirection((eDir)((rand() % 3) + 4));
+ 
+        //right paddle
+        for (int i = 0; i < 4; i++)
+            if (ballx == player2x - 1)
+                if (bally == player2y + i)
+                    ball->changeDirection((eDir)((rand() % 3) + 1));
+ 
+        //bottom wall
+        if (bally == height - 1)
+            ball->changeDirection(ball->getDirection() == DOWNRIGHT ? UPRIGHT : UPLEFT);
+        //top wall
+        if (bally == 0)
+            ball->changeDirection(ball->getDirection() == UPRIGHT ? DOWNRIGHT : DOWNLEFT);
+        //right wall
+        if (ballx == width - 1)
+            ScoreUp(player1);
+        //left wall
+        if (ballx == 0)
+            ScoreUp(player2);
     }
     bool IsQuit() {
         return  quit;
@@ -255,11 +275,14 @@ int main() {
     nodelay(stdscr, TRUE);
 
     cGameManager m(40, 20);
-    while (getch() != 'q') {
+    while (!m.IsQuit()) {
         m.Input();
+	m.Logic();
         m.Draw();
+        refresh();
         napms(40);
     }
 
+    endwin();
     return 0;
 }
